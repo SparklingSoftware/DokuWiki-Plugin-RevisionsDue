@@ -1,0 +1,8 @@
+base   revisionsdue
+author Stephan Dekker
+email  Stephan@SparklingSoftware.com.au
+date   2012-03-30
+name   RevisionsDue plugin
+desc   Find pages that should be revised as specified by the <revision_frequency>YYY</revision_frequency> xml
+url    http://www.dokuwiki.org/plugin:nodisp', http://www.SparklingSoftware.com.au
+
