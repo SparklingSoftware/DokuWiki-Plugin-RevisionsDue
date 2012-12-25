@@ -32,23 +32,22 @@ function revision_callback_search_wanted(&$data,$base,$file,$type,$lvl,$opts) {
 	if(auth_quickaclcheck($id) < AUTH_READ) {
 		return false;
 	}
-  
-        $revision_frequency = get_revision_frequency($file);
+
+    $revision_frequency = get_revision_frequency($file);
  
 	// try to avoid making duplicate entries for forms and pages
 	$item = &$data["$id"];
 	if(! isset($item)) {
 	   // Create a new entry
 	   $filename = DOKU_INC.'data/pages/'.$file;
-           $last_modifed = filemtime($filename);
+       $last_modifed = filemtime($filename);
     
-           $revision_date = $last_modifed + (intval($revision_frequency) * 86400);
+       $revision_date = $last_modifed + (intval($revision_frequency) * 86400);
 	   if ($revision_date < time()) {
-
-              $data["$id"]=array('revision' => $last_modifed, 
-                              'frequency' => $revision_frequency, 
-                              'revision_date' => $revision_date );
-           }
+            $data["$id"]=array('revision' => $last_modifed, 
+                'frequency' => $revision_frequency, 
+                'revision_date' => $revision_date );
+       }
 	}
   
 	return true;
@@ -65,11 +64,12 @@ function get_revision_frequency($file) {
   $filename = DOKU_INC.'data/pages/'.$file;
   $body = @file_get_contents($filename);
 
-  $pattern = '/<revision_frequency>\d+<\/revision_frequency>/i';
+  $pattern = '/<revision_frequency>\-?\d+<\/revision_frequency>/i';
   $count = preg_match($pattern, $body, $matches);
-  $result = htmlspecialchars($matches[0]);  
+  $result = htmlspecialchars($matches[0]);    
   $result = str_replace(htmlspecialchars('<revision_frequency>'), "", $result);
   $result = str_replace(htmlspecialchars('</revision_frequency>'), "", $result);
+  
 
   return $result;
 }
@@ -167,6 +167,9 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
                 case 'all':
                     $renderer->doc .= $this->all_pages($data);
                     break;
+                case 'revisions':
+                    $renderer->doc .= $this->all_pages($data, false);
+                    break;
                 default:
                     $renderer->doc .= "RevisionsDue syntax error";
                    // $renderer->doc .= "syntax ~~REVISIONS:<choice>~~<choice> :: all  Example: ~~REVISIONS:all~~";
@@ -177,17 +180,17 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
         return false;
     }
  
-     function all_pages($params_array) {
+    function all_pages($params_array, $mandatory_revisions = true ) {
       global $conf;
       $result = '';
       $data = array();
       search($data,$conf['datadir'],'revision_callback_search_wanted',array('ns' => $ns));
-      $result .= $this->revision_report_table($data);
+      $result .= $this->revision_report_table($data, $mandatory_revisions);
  
       return $result;
     }
 
-  function revision_report_table( $data )
+  function revision_report_table( $data, $mandatory_revisions = true )
   {
     global $conf;
   
@@ -202,10 +205,14 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
 
   	foreach($data as $id=>$item)
     {
-  		if( $item['revision'] == '' ) {
+  		if( $item['revision'] === '' ) {
          continue ;
-      }
- 
+        }
+        
+        if ($mandatory_revisions === false and $item['frequency'] === '' ) {
+              continue ;
+        }
+          
   		// $id is a string, looks like this: page, namespace:page, or namespace:<subspaces>:page
   		$match_array = explode(":", $id);
   		//remove last item in array, the page identifier
