@@ -16,6 +16,7 @@ require_once(DOKU_INC.'inc/search.php');
 define('DEBUG', 0);
  
 function revision_callback_search_wanted(&$data,$base,$file,$type,$lvl,$opts) {
+    global $conf;
 
 	if($type == 'd'){
 		return true; // recurse all directories, but we don't store namespaces
@@ -35,18 +36,23 @@ function revision_callback_search_wanted(&$data,$base,$file,$type,$lvl,$opts) {
 
     $revision_frequency = get_revision_frequency($file);
  
-	// try to avoid making duplicate entries for forms and pages
+    // try to avoid making duplicate entries for forms and pages
 	$item = &$data["$id"];
 	if(! isset($item)) {
-	   // Create a new entry
-	   $filename = DOKU_INC.'data/pages/'.$file;
-       $last_modifed = filemtime($filename);
-    
-       $revision_date = $last_modifed + (intval($revision_frequency) * 86400);
+       // Create a new entry
+       $filename = $conf['datadir'].$file;
+       $last_modified = filemtime($filename);
+       
+       $revision_date = $last_modified + (intval($revision_frequency) * 86400);       
 	   if ($revision_date < time()) {
-            $data["$id"]=array('revision' => $last_modifed, 
+           $data["$id"]=array('revision' => $last_modified, 
                 'frequency' => $revision_frequency, 
                 'revision_date' => $revision_date );
+       }      
+       else
+       {
+           // The item is actually already added to the array! We need to remove it if we don't need it.
+           unset($data["$id"]);
        }
 	}
   
@@ -60,25 +66,24 @@ function revision_string($revision) {
 }
 
 function get_revision_frequency($file) {
+    global $conf;
 
-  $filename = DOKU_INC.'data/pages/'.$file;
+  $filename = $conf['datadir'].$file;
   $body = @file_get_contents($filename);
-
   $pattern = '/<revision_frequency>\-?\d+<\/revision_frequency>/i';
   $count = preg_match($pattern, $body, $matches);
   $result = htmlspecialchars($matches[0]);    
   $result = str_replace(htmlspecialchars('<revision_frequency>'), "", $result);
   $result = str_replace(htmlspecialchars('</revision_frequency>'), "", $result);
   
-
   return $result;
 }
 
 function date_compare($a, $b) {
-  if ($a['revision'] == $b['revision']) {
-    return 0;
-  }
-  return ($a['revision'] < $b['revision']) ? -1 : 1;
+    if ($a['revision_date'] == $b['revision_date']) {
+       return 0;
+    }
+    return ($a['revision_date'] < $b['revision_date']) ? -1 : 1;
 }
 
 
@@ -185,6 +190,7 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
       $result = '';
       $data = array();
       search($data,$conf['datadir'],'revision_callback_search_wanted',array('ns' => $ns));
+      
       $result .= $this->revision_report_table($data, $mandatory_revisions);
  
       return $result;
@@ -199,7 +205,7 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
  
     // for valid html - need to close the <p> that is feed before this
     $output .= '</p>';
-    $output .= '<table class="inline"><tr><th> # </th><th>Title</th><th>Revised</th><th>Frequency</th><th>revision_date</th></tr>'."\n" ;
+    $output .= '<table class="inline"><tr><th> # </th><th>Title</th><th>Last Revision</th><th>Frequency</th><th>Next Revision Date</th></tr>'."\n" ;
  
     uasort($data, 'date_compare');
 
@@ -209,7 +215,7 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
          continue ;
         }
         
-        if ($mandatory_revisions === false and $item['frequency'] === '' ) {
+        if ($mandatory_revisions === false and ($item['frequency'] === '' or !isset($item['frequency']))) {
               continue ;
         }
           
@@ -242,6 +248,8 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
    	    $revision = $item['revision'];
    	    $frequency = $item['frequency'];
    	    $revision_date = $item['revision_date'];
+
+//        msg('Creating teable for:'.$id.' was modified: '.date ("F d Y H:i:s.", $revision));
 
         $output .=  "<tr><td>$count</td><td><a href=\"". wl($id)
         . "\" class=\"" . "wikilink1"
