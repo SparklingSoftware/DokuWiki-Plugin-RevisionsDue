@@ -141,7 +141,7 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
      * Handle the match
      */
  
-    function handle($match, $state, $pos, &$handler){
+    function handle($match, $state, $pos, Doku_Handler $handler){
         $match_array = array();
         $match = substr($match,12,-2); //strip ~~REVISIONS: from start and ~~ from end
         // Wolfgang 2007-08-29 suggests commenting out the next line
@@ -156,7 +156,7 @@ class syntax_plugin_revisionsdue extends DokuWiki_Syntax_Plugin {
     /**
      * Create output
      */
-    function render($format, &$renderer, $data) {
+    function render($format, Doku_Renderer $renderer, $data) {
         global $INFO, $conf;
 
         if($format == 'xhtml'){
